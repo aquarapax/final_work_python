@@ -1,0 +1,157 @@
+query_1:
+
+SELECT 
+    rating, 
+    ROUND((COUNT(*) * 1.0 /(SELECT COUNT(*) FROM film))*100,2) AS proportion
+FROM 
+    film
+GROUP BY 
+    rating;
+
+query_2:
+
+SELECT 
+	(SELECT c.name FROM category c WHERE c.category_id = fc.category_id) AS cat_name,
+	sum(
+        (SELECT count(r.rental_id)  FROM rental r, inventory i WHERE i.inventory_id = r.inventory_id and i.film_id  = f.film_id)
+        ) AS rent_count
+FROM 
+	film f, 
+	film_category fc 
+WHERE
+	fc.film_id  = f.film_id 
+GROUP BY 
+	fc.category_id 
+ORDER BY 
+	rent_count DESC;
+
+query_3:
+
+SELECT 
+    (SELECT c.name FROM category c WHERE c.category_id = fc.category_id) AS cat_name,
+    ROUND(
+        AVG(f.rental_duration)::numeric, 2
+    ) AS rent_avg_time
+FROM 
+    film f, 
+    film_category fc 
+WHERE
+    fc.film_id = f.film_id 
+GROUP BY 
+    fc.category_id 
+ORDER BY 
+	rent_avg_time desc;
+
+query_4:
+
+SELECT 
+    'monthly rental revenue' AS type_record, 
+    TO_CHAR(p.payment_date, 'YYYY.MM') AS month_sales, 
+    SUM(p.amount) AS total_sales 
+FROM 
+    payment p 
+WHERE 
+    TO_CHAR(p.payment_date, 'YYYY') = '2005' 
+GROUP BY 
+    TO_CHAR(p.payment_date, 'YYYY.MM')
+UNION SELECT 'sales' AS type_record, TO_CHAR(r.rental_date, 'YYYY.MM') AS month_sales, COUNT(r.rental_id) AS total_sales FROM 
+    rental r 
+WHERE 
+    TO_CHAR(r.rental_date, 'YYYY') = '2005' 
+GROUP BY 
+    TO_CHAR(r.rental_date, 'YYYY.MM')
+ORDER BY
+    type_record, month_sales;
+
+query_5:
+
+SELECT 
+    (SELECT ss.first_name || ' ' || ss.last_name 
+     FROM staff ss 
+     WHERE ss.staff_id = s.manager_staff_id) AS store_manager_name,
+    TO_CHAR(p.payment_date, 'YYYY.MM') AS period,
+    SUM(p.amount) AS total_sales 
+FROM 
+    payment p, 
+    customer c, 
+    store s 
+WHERE 
+    p.customer_id = c.customer_id 
+    AND c.store_id = s.store_id 
+GROUP BY 
+    s.manager_staff_id, 
+    TO_CHAR(p.payment_date, 'YYYY.MM');
+    
+query_6:
+
+SELECT 
+    (SELECT c.name 
+     FROM category c 
+     WHERE c.category_id = fc.category_id) AS cat_name,
+    ROUND(AVG(f.replacement_cost)::numeric, 2) AS avg_replacement_cost
+FROM 
+    film f, 
+    film_category fc 
+WHERE 
+    fc.film_id = f.film_id
+GROUP BY 
+    fc.category_id 
+ORDER BY 
+    avg_replacement_cost DESC;
+
+query_7:
+
+SELECT 
+    (SELECT a.first_name || ' ' || a.last_name 
+     FROM actor a 
+     WHERE a.actor_id = fa.actor_id) AS actor_full_name,
+    COUNT(DISTINCT (SELECT fc.category_id 
+                     FROM film_category fc 
+                     WHERE fc.film_id = f.film_id)) AS cat_count
+FROM 
+    film f,
+    film_actor fa
+WHERE 
+    fa.film_id = f.film_id
+GROUP BY 
+    fa.actor_id
+HAVING 
+    COUNT(DISTINCT (SELECT fc.category_id 
+                     FROM film_category fc 
+                     WHERE fc.film_id = f.film_id)) = (
+        SELECT MAX(cat_count) 
+        FROM (
+            SELECT COUNT(DISTINCT (SELECT fc.category_id 
+                                    FROM film_category fc 
+                                    WHERE fc.film_id = f.film_id)) AS cat_count
+            FROM film f
+            JOIN film_actor fa ON fa.film_id = f.film_id
+            GROUP BY fa.actor_id
+        ) AS subquery
+    )
+ORDER BY cat_count DESC;
+
+query_8:
+
+SELECT 
+    f.title, 
+    f.release_year, 
+    l."name" AS language_name, 
+    f.rental_duration, 
+    f.rental_rate, 
+    f.replacement_cost, 
+    f.rating,
+    a.first_name || ' ' || a.last_name AS actor_name, 
+    c."name" AS category_name
+FROM 
+    film f
+JOIN 
+    film_actor fa ON fa.film_id = f.film_id
+JOIN 
+    actor a ON fa.actor_id = a.actor_id
+JOIN 
+    "language" l ON f.language_id = l.language_id
+JOIN 
+    film_category fc ON fc.film_id = f.film_id
+JOIN 
+    category c ON fc.category_id = c.category_id;
